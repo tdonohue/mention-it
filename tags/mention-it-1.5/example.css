@@ -1,0 +1,96 @@
+/* Example Stylesheet for Mention-It generated content */
+/* See comments inline below for styling hints, etc. */
+
+/* Mention-It generates a <div> of the following general structure: 
+   
+   EXAMPLE #1 - Results from Twitter or FriendFeed
+   
+   <div id="mention-it">
+     <div class="mentions-header">Recent mentions via...</div>
+     <div class="mentions">
+        <div class="mention-post">single mention goes here
+           <div class="mention-comments">
+              <div class="mention-commment">
+                 a comment on a mention goes here,
+                 only FriendFeed returns comments right now
+              </div>
+              ...
+           </div>   
+        </div>
+        ...
+     </div>
+     ...
+   </div> 
+   
+   EXAMPLE #2 - Results from Blog Search (e.g. Google Blog Search)
+   
+   <div id="mention-it">
+     <div class="mentions-header">Recent mentions via...</div>
+     <div class="mentions">
+        <div class="mention-post">single mention goes here
+           <div class='mention-title'>Title info from Blog Post</div>
+           <div class='mention-author'>Author of Blog Post</div>
+		   <div class='mention-date'>Date of Blog Post</div>
+		   <div class='mention-snippet'>Snippet from Blog Post</div>  
+        </div>
+        ...
+     </div>
+     ...
+   </div> 
+   
+   See the CSS in example.html for more on <div> structure and sample CSS
+*/
+
+/* Special styles for everything in the mention-it <div> */
+div#mention-it {}
+
+/* If you want to stylize the links in mention-it <div>, put those styles here! */
+div#mention-it a {}
+
+/* "Searching for mentions..." message which is displayed temporarily 
+   until first results are found */
+div#mentions-loading {}
+
+/* Header for each site's search results */
+div.mentions-header 
+{
+  border-bottom: 1px solid #CCCCCC;
+  font-size:110%;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+/* List of all mentions from a site */
+div.mentions  
+{
+  list-style-type: none;
+}
+
+/* A single mention from a site */
+div.mention-post
+{ 
+  margin-left:20px;
+  padding-bottom: 10px;
+  font-weight: normal;
+}
+
+/* List of all comments on a single mention (FriendFeed ONLY, right now) */
+div.mention-comments { }
+
+/* Comments associated with a single mention (FriendFeed ONLY, right now) */
+div.mention-comment
+{
+  margin-left: 20px;
+  color: gray;
+  font-size: smaller;
+  border-bottom: thin dotted gray;
+}
+
+/* Title from a Blog Post mention */
+div.mention-title {}
+/* Authors from a Blog Post mention */
+div.mention-author {}
+/* Date from a Blog Post mention */
+div.mention-date {}
+/* Snippet from a Blog Post mention */
+div.mention-snippet {}
