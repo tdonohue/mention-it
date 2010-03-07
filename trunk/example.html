@@ -3,38 +3,18 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>mentionIT - example</title>
+<title>mention-it - example</title>
+<link rel="stylesheet" type="text/css" href="example.css" />
 <style type="text/css">
-/* DEFAULT STYLES FOR MENTION-IT */
-.mentions-header
-{
-  border-bottom: 1px solid #CCCCCC;
-  font-size:110%;
-  margin-bottom: 10px;
-  font-weight: bold;
-}
-.mentions
-{
-  list-style-type: none;
-}
-.mention-post
-{ 
-  margin-left:20px;
-  padding-bottom: 10px;
-  font-weight: normal;
-}
-.mention-comment
-{
-  margin-left: 20px;
-  color: gray;
-  font-size: smaller;
-  border-bottom: thin dotted gray;
-}
 #example-search
 {
   font-weight: bold;
-  padding-bottom: 40px;
+  padding-bottom: 20px;
   font-size: 150%;
+}
+#note
+{
+  padding-bottom: 40px;
 }
 </style>
 <!-- OPTIONAL: Replace the normal Google javascript call with the one commented out, if you have an API Key.
@@ -43,7 +23,7 @@
 <!--<script type="text/javascript" src="http://www.google.com/jsapi?key=YOUR_KEY_HERE"></script>-->
 <script type="text/javascript" src="http://www.google.com/jsapi"></script>
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3/jquery.min.js"></script>
-<script type="text/javascript" src="http://mention-it.googlecode.com/svn/trunk/mention-it.js"></script>
+<script type="text/javascript" src="mention-it.js"></script>
 <script type="text/javascript">
 		jQuery(document).ready(
 		function()
@@ -55,14 +35,16 @@
 <body>
 
 <!--#This is just all HTML/Javascript code to display what we are searching on -->
-<h1>mentionIT- example search</h1>
+<h1>mention-it Demo</h1>
+
 <div>
 	<div id="example-search"/>
 </div>
+<div id="note">(View the source in your browser to see the HTML tags which set up this mention-it search)</div>
 
 <!--The below tag runs mentionIT with the query set to whatever is in the @title attribute -->
 <!-- In this example, we'll look for mentions of "mention-it.googlecode.com" out on the web-->
-<div id="mention-it" title="mention-it.googlecode.com"/>
+<div id="mention-it" title="mention-it.googlecode.com; bibapp.org"/>
 
 <!-- Here's a few more examples of potential mention searches -->
 <!--<div id="mention-it" title="or09" />-->
