@@ -42,10 +42,14 @@
 */
 
 /* Special styles for everything in the mention-it <div> */
-div#mention-it {  }
+div#mention-it {}
 
 /* If you want to stylize the links in mention-it <div>, put those styles here! */
-div#mention-it a { }
+div#mention-it a {}
+
+/* "Searching for mentions..." message which is displayed temporarily 
+   until first results are found */
+div#mentions-loading {}
 
 /* Header for each site's search results */
 div.mentions-header 

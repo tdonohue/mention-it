@@ -32,6 +32,9 @@ var resultsPerService = 5; //how many results per enabled service to return
 var twitterEnabled = true; //enable results from Twitter?
 var friendFeedEnabled = true; // enable results from FriendFeed?
 
+// Temporary "searching" message which is displayed until first set of results are found
+var searchingForMentions = "Searching for mentions out on the web....";
+
 //Heading (placed at beginning of a <div id='mentions-header'> by default)
 var headingPreface = "Recent mentions via"; 
 
@@ -114,6 +117,14 @@ jQuery(document).ready(
             mentionItQuery = mentionItQuery.replace(/\s*\;\s*/, " OR ");
             mentionItQuery = escape(mentionItQuery);
             
+            //When first AJAX query begins, display "Searching for mentions"
+            //  After first AJAX query completes successfully, remove that message.
+            mentionItTag.ajaxStart(function() {
+                jQuery(this).append("<div id='mentions-loading'>" + searchingForMentions + "</div>");
+             }).ajaxSuccess(function() {
+                jQuery('#mentions-loading').remove();
+             })
+            
             //uncomment for query debugging
             //alert("Query=" + mentionItQuery);        
         }//end if mentionItTag found
@@ -156,7 +167,6 @@ function loadJSONTrackers()
 // Parse the JSON results from a Twitter search into an HTML <div>
 function parse_twitter_json(data)
 {
-	
   var postsHTML = '';
   var sectionHeader = '';
 	
@@ -202,7 +212,6 @@ function parse_twitter_json(data)
 // Parse the JSON results from a FriendFeed search into an HTML <div>
 function parse_friendfeed_json(data)
 {
-	
 	var postsHTML = '';
 	var sectionHeader = '';
 	
