@@ -1,0 +1,72 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>mentionIT - example</title>
+<style type="text/css">
+/* DEFAULT STYLES FOR MENTION-IT */
+.mentions-header
+{
+  border-bottom: 1px solid #CCCCCC;
+  font-size:110%;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+.mentions
+{
+  list-style-type: none;
+}
+.mention-post
+{ 
+  margin-left:20px;
+  padding-bottom: 10px;
+  font-weight: normal;
+}
+.mention-comment
+{
+  margin-left: 20px;
+  color: gray;
+  font-size: smaller;
+  border-bottom: thin dotted gray;
+}
+#example-search
+{
+  font-weight: bold;
+  padding-bottom: 40px;
+  font-size: 150%;
+}
+</style>
+<!-- OPTIONAL: Replace the normal Google javascript call with the one commented out, if you have an API Key.
+      If Google has problems with how you are using the Google AJAX Feed API, they can then use your key to contact you.
+     For more info, see: http://code.google.com/apis/ajaxfeeds/key.html -->
+<!--<script type="text/javascript" src="http://www.google.com/jsapi?key=YOUR_KEY_HERE"></script>-->
+<script type="text/javascript" src="http://www.google.com/jsapi"></script>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3/jquery.min.js"></script>
+<script type="text/javascript" src="http://mention-it.googlecode.com/svn/trunk/mention-it.js"></script>
+<script type="text/javascript">
+		jQuery(document).ready(
+		function()
+		{
+			jQuery("#example-search").append("Example search for '" + jQuery("#mention-it").attr("title") + "'");
+		});
+</script>
+</head>
+<body>
+
+<!--#This is just all HTML/Javascript code to display what we are searching on -->
+<h1>mentionIT- example search</h1>
+<div>
+	<div id="example-search"/>
+</div>
+
+<!--The below tag runs mentionIT with the query set to whatever is in the @title attribute -->
+<!-- In this example, we'll look for mentions of "mention-it.googlecode.com" out on the web-->
+<div id="mention-it" title="mention-it.googlecode.com"/>
+
+<!-- Here's a few more examples of potential mention searches -->
+<!--<div id="mention-it" title="or09" />-->
+<!--<div id="mention-it" title="www.ideals.uiuc.edu/handle/2142/1792"/>-->
+
+</body>
+</html>
