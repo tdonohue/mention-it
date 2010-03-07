@@ -30,6 +30,8 @@ Release Notes
   * Removed config for Technorati (no longer works, as they changed RSS 
     search feeds to require signup), and replaced with config for Ask Blog 
     Search
+  * Added a "Searching for mentions.." message which is displayed until the
+    first set of results is returned.
 
 [version 1.0] 
   * Initial Version of Mention-It Javascript Library
