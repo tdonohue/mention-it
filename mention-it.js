@@ -1,31 +1,67 @@
+/* The Mention-It Javascript Library
+ 
+Copyright (c) 2009 Tim Donohue
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
+
 // Technologies used:
 //    jQuery:   http://jquery.com/
 //    Google AJAX Feed API: http://code.google.com/apis/ajaxfeeds/
 
-//Config
-var resultsPerService = 5;
-var twitterEnabled = true;
-var friendFeedEnabled = true;
+//------- Mention-It Configuration -------
+// Use this area to make some minor tweaks to how you want mention-it to function
 
-var headingPreface = "Recent mentions via";
+var resultsPerService = 5; //how many results per enabled service to return
+var twitterEnabled = true; //enable results from Twitter?
+var friendFeedEnabled = true; // enable results from FriendFeed?
 
-// List of all search feeds formatted in JSON
+//Heading (placed at beginning of a <div id='mentions-header'> by default)
+var headingPreface = "Recent mentions via"; 
+
+// List of all search feeds.  Config is formatted in JSON,
 // [[query]] is the placeholder for the Query text
+// NOTE: To remove a site, just remove or comment out all its settings below
 var searchFeeds = { 
     "sites":
-      [
+      [  //Config for Google Blog Search
         {"title": "Google Blog Search",
          "feedURL": "http://blogsearch.google.com/blogsearch_feeds?hl=en&q=[[query]]&ie=utf-8&num=5&output=atom", 
          "searchURL": "http://blogsearch.google.com/blogsearch?hl=en&ie=UTF-8&q=[[query]]&btnG=Search+Blogs",
          "siteURL": "http://blogsearch.google.com/",
          "booleanOR": "OR"
-        },
+        }, //Config for Ask.com Blog Search
+        {"title": "Ask.com Blog Search",
+         "feedURL": "http://ask.bloglines.com/search?q=[[query]]&ql=&format=rss",
+         "searchURL": "http://www.ask.com/blogsearch?q=[[query]]",
+         "siteURL": "http://www.ask.com/blogsearch",
+         "booleanOR": "OR"
+        }
+        /* NOTE: As of March 2010, Technorati changed how its RSS
+           is generated and it no longer works well with Google AJAX Feed API
+         ,
         {"title": "Technorati",
          "feedURL": "http://feeds.technorati.com/search/[[query]]?language=n",
          "searchURL": "http://technorati.com/search/[[query]]?language=n",
          "siteURL": "http://technorati.com/",
          "booleanOR": "OR"
-        }
+        }*/
       ]
 }
 
@@ -35,6 +71,8 @@ var searchFeeds = {
 var googleAJAXFeedKey = "";
 
 
+//-------- The Mention-It Code -------
+// this is where the magic happens!
 
 // Global variables
 var mentionItTag = null;
@@ -51,7 +89,7 @@ jQuery(document).ready(
         //Only continue if the "mention-it" tag was found
         if(tagExists(mentionItTag))
         {
-            // Query specified in the HTML tag's title
+            // Query specified in the HTML tag's title attribute
             mentionItQuery = mentionItTag.attr("title");
 
             //Initialize each of the sites:
@@ -62,16 +100,22 @@ jQuery(document).ready(
                 //default boolean OR to just "OR" if unspecified for a site
                 if(site.booleanOR==null || site.booleanOR=="") site.booleanOR="OR";
 
-                //replace semicolons(;) with boolean OR
+                //replace semicolons(;) with boolean OR, and URL escape the query
                 queryForSite = mentionItQuery.replace(/\s*\;\s*/, " " + site.booleanOR + " ");
+                queryForSite = escape(queryForSite);
 
-                //replace the [[query]] placeholder with the site-specific query
+                //replace the [[query]] placeholder with site-specific query
                 site.feedURL = site.feedURL.replace(/\[\[query\]\]/, queryForSite);
                 site.searchURL = site.searchURL.replace(/\[\[query\]\]/, queryForSite);
             });
 
             //For everything else (Twitter/FF, etc), replace semicolons(;) with boolean OR
+            // also URL escape the query.
             mentionItQuery = mentionItQuery.replace(/\s*\;\s*/, " OR ");
+            mentionItQuery = escape(mentionItQuery);
+            
+            //uncomment for query debugging
+            //alert("Query=" + mentionItQuery);        
         }//end if mentionItTag found
     });
 
@@ -91,6 +135,7 @@ function loadJSONTrackers()
 			  //Add search API call for Twitter
 			  if(twitterEnabled)
 			  {     
+			    //the Twitter JSON search, with our query URL-escaped
 				var searchURL = "http://search.twitter.com/search.json?rpp="+resultsPerService+"&q="+mentionItQuery+"&callback=?";
 				//send off search and parse response using parse_twitter_json()
 				jQuery.getJSON(searchURL, parse_twitter_json);
@@ -99,6 +144,7 @@ function loadJSONTrackers()
 			  //Add search API call for FriendFeed
 			  if(friendFeedEnabled)
 			  {
+			    //The FriendFeed JSON search, with our query URL-escaped
 				//NOTE: append '-service:twitter' on query in order to filter out twitter-based results
 				searchURL = 'http://friendfeed.com/api/feed/search?num='+resultsPerService+'&q=' + mentionItQuery + '+-service%3Atwitter&callback=?';
 				//send off search and parse response using parse_friendfeed_json()
