@@ -28,9 +28,8 @@ THE SOFTWARE.
 //------- Mention-It Configuration -------
 // Use this area to make some minor tweaks to how you want mention-it to function
 
-var resultsPerService = 5; //how many results per enabled service to return
-var twitterEnabled = true; //enable results from Twitter?
-var friendFeedEnabled = true; // enable results from FriendFeed?
+//how many results per enabled service to return
+var resultsPerService = 5; 
 
 // Temporary "searching" message which is displayed until first set of results are found
 var searchingForMentions = "Searching for mentions out on the web....";
@@ -38,7 +37,27 @@ var searchingForMentions = "Searching for mentions out on the web....";
 //Heading (placed at beginning of a <div id='mentions-header'> by default)
 var headingPreface = "Recent mentions via"; 
 
-// List of all search feeds.  Config is formatted in JSON,
+// List of all JSON-based trackers.  Config below is formatted in JSON,
+// [[query]] is the placeholder for the Query text
+// [[resultsCount]] is the placeholder for how many results to return per service
+// NOTE: To remove a site, just remove or comment out all its settings below
+var jsonTrackers = {
+	"sites":
+	  [ //Config for Twitter (results parsed by parse_twitter_json() function)
+	  	{"title": "Twitter",
+	  	 "jsonURL" : "http://search.twitter.com/search.json?rpp=[[resultsCount]]&q=[[query]]&callback=?",
+	  	 "booleanOR" : "OR",
+	  	 "parser" : "parse_twitter_json"
+	  	}, //Config for FriendFeed (results parsed by parse_friendfeed_json() function)
+	  	{"title": "FriendFeed",
+	  	 "jsonURL" : "http://friendfeed.com/api/feed/search?num=[[resultsCount]]&q=[[query]]&callback=?",
+	  	 "booleanOR" : "OR",
+	  	 "parser" : "parse_friendfeed_json"
+	  	}
+	  ]
+}
+
+// List of all RSS/ATOM search feeds.  Config below is formatted in JSON,
 // [[query]] is the placeholder for the Query text
 // NOTE: To remove a site, just remove or comment out all its settings below
 var searchFeeds = { 
@@ -81,6 +100,8 @@ var googleAJAXFeedKey = "";
 var mentionItTag = null;
 var mentionItQuery;
 
+// ==== Initializers =====
+
 //Once document finishes loading,
 //PERFORM INITIALIZATION TASKS
 jQuery(document).ready(
@@ -95,23 +116,10 @@ jQuery(document).ready(
             // Query specified in the HTML tag's title attribute
             mentionItQuery = mentionItTag.attr("title");
 
-            //Initialize each of the sites:
-            //update the query placeholder in each of the site URLs
-            jQuery.each(searchFeeds.sites, function(i, site){
-                var queryForSite = mentionItQuery;
-
-                //default boolean OR to just "OR" if unspecified for a site
-                if(site.booleanOR==null || site.booleanOR=="") site.booleanOR="OR";
-
-                //replace semicolons(;) with boolean OR, and URL escape the query
-                queryForSite = mentionItQuery.replace(/\s*\;\s*/, " " + site.booleanOR + " ");
-                queryForSite = escape(queryForSite);
-
-                //replace the [[query]] placeholder with site-specific query
-                site.feedURL = site.feedURL.replace(/\[\[query\]\]/, queryForSite);
-                site.searchURL = site.searchURL.replace(/\[\[query\]\]/, queryForSite);
-            });
-
+			//initialize all our trackers
+            initJSONTrackers();
+            initFeedTrackers();
+            
             //For everything else (Twitter/FF, etc), replace semicolons(;) with boolean OR
             // also URL escape the query.
             mentionItQuery = mentionItQuery.replace(/\s*\;\s*/, " OR ");
@@ -130,38 +138,68 @@ jQuery(document).ready(
         }//end if mentionItTag found
     });
 
+//Initialize each of the RSS/ATOM Feed Trackers
+function initFeedTrackers()
+{
+   	//Initialize each of the RSS/ATOM Feed sites:
+   	//update the query placeholder in each of the site URLs
+	jQuery.each(searchFeeds.sites, function(i, site){
+		var queryForSite = mentionItQuery;
+
+		//default boolean OR to just "OR" if unspecified for a site
+		if(site.booleanOR==null || site.booleanOR=="") site.booleanOR="OR";
+
+		//replace semicolons(;) with boolean OR, and URL escape the query
+		queryForSite = mentionItQuery.replace(/\s*\;\s*/, " " + site.booleanOR + " ");
+		queryForSite = escape(queryForSite);
+
+		//replace the [[query]] placeholder with site-specific query
+		site.feedURL = site.feedURL.replace(/\[\[query\]\]/, queryForSite);
+		site.searchURL = site.searchURL.replace(/\[\[query\]\]/, queryForSite);
+	});
+}
+
+//Initialize each of the JSON Feed Trackers
+function initJSONTrackers()
+{
+   	//Initialize each of the JSON sites:
+   	//update the query placeholder in each of the site URLs
+	jQuery.each(jsonTrackers.sites, function(i, site){
+		var queryForSite = mentionItQuery;
+
+		//default boolean OR to just "OR" if unspecified for a site
+		if(site.booleanOR==null || site.booleanOR=="") site.booleanOR="OR";
+
+		//replace semicolons(;) with boolean OR, and URL escape the query
+		queryForSite = mentionItQuery.replace(/\s*\;\s*/, " " + site.booleanOR + " ");
+		queryForSite = escape(queryForSite);
+
+		//replace the [[query]] placeholder with site-specific query
+		site.jsonURL = site.jsonURL.replace(/\[\[query\]\]/, queryForSite);
+		
+		//replace the [[resultsCount]] placeholder with site-specific query
+		site.jsonURL = site.jsonURL.replace(/\[\[resultsCount\]\]/, resultsPerService);
+	});
+}
+
+
+// ==== Searchers / Parsers =====
 
 // Once document finishes loading, call loadJSONTrackers()
 jQuery(document).ready(loadJSONTrackers);
 
-// Also load all Feed (RSS/ATOM) Trackers, using Google AJAX API
+// Second, load all Feed (RSS/ATOM) Trackers, using Google AJAX API
 loadFeedTrackers();
 
-// Load all of our web trackers to search for mentions out on the web.
+// Load all of our JSON web trackers to search for mentions out on the web.
 function loadJSONTrackers()
 {
-	  // Only contine if the 'mention-it' tag exists
-	  if(tagExists(mentionItTag))
-	  {
-			  //Add search API call for Twitter
-			  if(twitterEnabled)
-			  {     
-			    //the Twitter JSON search, with our query URL-escaped
-				var searchURL = "http://search.twitter.com/search.json?rpp="+resultsPerService+"&q="+mentionItQuery+"&callback=?";
-				//send off search and parse response using parse_twitter_json()
-				jQuery.getJSON(searchURL, parse_twitter_json);
-			  }
-
-			  //Add search API call for FriendFeed
-			  if(friendFeedEnabled)
-			  {
-			    //The FriendFeed JSON search, with our query URL-escaped
-				//NOTE: append '-service:twitter' on query in order to filter out twitter-based results
-				searchURL = 'http://friendfeed.com/api/feed/search?num='+resultsPerService+'&q=' + mentionItQuery + '+-service%3Atwitter&callback=?';
-				//send off search and parse response using parse_friendfeed_json()
-				jQuery.getJSON(searchURL, parse_friendfeed_json);
-			  }
-	  }
+	//for each configured site
+	jQuery.each(jsonTrackers.sites, function(i, site){
+	
+		//load the JSON search URL, and evaluate the results using the appropriate parser function
+		jQuery.getJSON(site.jsonURL, eval(site.parser));
+    });
 }
 
 // Parse the JSON results from a Twitter search into an HTML <div>
@@ -241,15 +279,15 @@ function parse_friendfeed_json(data)
 		      postsHTML += "<div class='mention-comments'>";
 		      for (j=0;j<maxComments;j++)
 		      {
-            user = entry.comments[j].user.nickname;
-            post = entry.comments[j].body;
-            user_link = 'http://friendfeed.com/'+user;
-            postedAt = entry.comments[j].date;
-            postsHTML += "<div class='mention-comment'>"
-                  + post
-                  + " " + postedAt
-                  + " (<a href='"+user_link+"'>"+user+"</a>)"
-                  + "</div>";
+				user = entry.comments[j].user.nickname;
+				post = entry.comments[j].body;
+				user_link = 'http://friendfeed.com/'+user;
+				postedAt = entry.comments[j].date;
+				postsHTML += "<div class='mention-comment'>"
+					  + post
+					  + " " + postedAt
+					  + " (<a href='"+user_link+"'>"+user+"</a>)"
+					  + "</div>";
 		      }
           //close off this set of comments
 		      postsHTML += "</div>";
@@ -338,7 +376,6 @@ function parse_feeds()
 }//end parse_feeds
 
 
-
 // Automated parsing of feeds, using the Google "FeedControl" class
 //  (NOTE: not used by default, since it makes the RSS/ATOM results look different than JSON results)
 function parse_feeds_auto()
@@ -358,6 +395,7 @@ function parse_feeds_auto()
     feedControl.draw(document.getElementById("mention-feed"), {drawMode: google.feeds.FeedControl.DRAW_MODE_TABBED});
 }
 
+// ==== Utilities ====
 
 // checks if a particular tag exists using JQuery
 // takes in a JQuery object (e.g. jQuery("#my-id"))
