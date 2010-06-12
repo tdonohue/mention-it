@@ -1,6 +1,6 @@
 /* The Mention-It Javascript Library
  
-Copyright (c) 2009 Tim Donohue
+Copyright (c) 2009-2010 Tim Donohue
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -37,54 +37,53 @@ var searchingForMentions = "Searching for mentions out on the web....";
 //Heading (placed at beginning of a <div id='mentions-header'> by default)
 var headingPreface = "Recent mentions via"; 
 
-// List of all JSON-based trackers.  Config below is formatted in JSON,
-// [[query]] is the placeholder for the Query text
-// [[resultsCount]] is the placeholder for how many results to return per service
+// List of all Site trackers.  Configuration is formatted in JSON syntax.
 // NOTE: To remove a site, just remove or comment out all its settings below
-var jsonTrackers = {
+//
+// There are two types of sites configurations:
+//  (1) Site with JSON API -- 'jsonURL' property required (results parsed using specified 'parser')
+//  (2) Site with Search RSS/ATOM Feed -- 'feedURL' property required (results parsed using Google AJAX Feed API)
+// Placeholders
+//  [[query]] is placeholder for any Query text (URL or tag)
+//  [[resultsCount]] is the placeholder for how many results to return per service
+var siteTrackers = {
 	"sites":
 	  [ //Config for Twitter (results parsed by parse_twitter_json() function)
-	  	{"title": "Twitter",
+	  	{"id": "twitter",  //ID should be unique -- don't change
+	  	 "title": "Twitter",
 	  	 "jsonURL" : "http://search.twitter.com/search.json?rpp=[[resultsCount]]&q=[[query]]&callback=?",
-	  	 "booleanOR" : "OR",
+	  	 "searchURL": "http://search.twitter.com/search?q=[[query]]",
+	  	 "siteURL" : "http://twitter.com",
+	  	 "queryFormatter" : "default_query_formatter",
 	  	 "parser" : "parse_twitter_json"
 	  	}, //Config for FriendFeed (results parsed by parse_friendfeed_json() function)
-	  	{"title": "FriendFeed",
+	  	{"id": "friendfeed", //ID should be unique -- don't change
+	  	 "title": "FriendFeed",
 	  	 "jsonURL" : "http://friendfeed.com/api/feed/search?num=[[resultsCount]]&q=[[query]]&callback=?",
-	  	 "booleanOR" : "OR",
+	  	 "searchURL": "http://friendfeed.com/search?q=[[query]]",
+	  	 "siteURL" : "http://friendfeed.com",
+	  	 "queryFormatter" : "no_urls_query_formatter",
 	  	 "parser" : "parse_friendfeed_json"
-	  	}
-	  ]
-}
-
-// List of all RSS/ATOM search feeds.  Config below is formatted in JSON,
-// [[query]] is the placeholder for the Query text
-// NOTE: To remove a site, just remove or comment out all its settings below
-var searchFeeds = { 
-    "sites":
-      [  //Config for Google Blog Search
-        {"title": "Google Blog Search",
+	  	}, //Config for Google Blog Search (RSS/ATOM Search Feed)
+        {"id": "google-blog-search",
+         "title": "Google Blog Search",
          "feedURL": "http://blogsearch.google.com/blogsearch_feeds?hl=en&q=[[query]]&ie=utf-8&num=5&output=atom", 
          "searchURL": "http://blogsearch.google.com/blogsearch?hl=en&ie=UTF-8&q=[[query]]&btnG=Search+Blogs",
          "siteURL": "http://blogsearch.google.com/",
-         "booleanOR": "OR"
-        }, //Config for Ask.com Blog Search
-        {"title": "Ask.com Blog Search",
-         "feedURL": "http://ask.bloglines.com/search?q=[[query]]&ql=&format=rss",
-         "searchURL": "http://www.ask.com/blogsearch?q=[[query]]",
-         "siteURL": "http://www.ask.com/blogsearch",
-         "booleanOR": "OR"
+         "queryFormatter" : "no_hashtags_query_formatter"
+         //parser is Google AJAX Feed API 
         }
-        /* NOTE: As of March 2010, Technorati changed how its RSS
-           is generated and it no longer works well with Google AJAX Feed API
+	  	/* NOTE: As of March 2010, Technorati changed how its RSS to require
+           signups/subscriptions.  Also the way the RSS feeds are generated 
+           now no longer works well with Google AJAX Feed API
          ,
         {"title": "Technorati",
          "feedURL": "http://feeds.technorati.com/search/[[query]]?language=n",
          "searchURL": "http://technorati.com/search/[[query]]?language=n",
          "siteURL": "http://technorati.com/",
-         "booleanOR": "OR"
+		 "queryFormatter" : "no_hashtags_query_formatter"
         }*/
-      ]
+	  ]
 }
 
 // Not required, but can be useful to contact you if Google has problems
@@ -116,14 +115,8 @@ jQuery(document).ready(
             // Query specified in the HTML tag's title attribute
             mentionItQuery = mentionItTag.attr("title");
 
-			//initialize all our trackers
-            initJSONTrackers();
-            initFeedTrackers();
-            
-            //For everything else (Twitter/FF, etc), replace semicolons(;) with boolean OR
-            // also URL escape the query.
-            mentionItQuery = mentionItQuery.replace(/\s*\;\s*/, " OR ");
-            mentionItQuery = escape(mentionItQuery);
+			//initialize all our site trackers
+            initSiteTrackers();
             
             //When first AJAX query begins, display "Searching for mentions"
             //  After first AJAX query completes successfully, remove that message.
@@ -134,52 +127,124 @@ jQuery(document).ready(
              })
             
             //uncomment for query debugging
-            //alert("Query=" + mentionItQuery);        
+            //alert("Query=" + mentionItQuery);
+            
         }//end if mentionItTag found
     });
 
-//Initialize each of the RSS/ATOM Feed Trackers
-function initFeedTrackers()
+//Initialize each of the configured Site Trackers
+function initSiteTrackers()
 {
-   	//Initialize each of the RSS/ATOM Feed sites:
-   	//update the query placeholder in each of the site URLs
-	jQuery.each(searchFeeds.sites, function(i, site){
-		var queryForSite = mentionItQuery;
+   	//Initialize each of the sites:
+   	//update the placeholders in each of the site URLs
+	jQuery.each(siteTrackers.sites, function(i, site){
+		//default query formatter setting to using default_query_formatter() function, if unspecified
+		if(site.queryFormatter==null || site.queryFormatter=="") site.queryFormatter="default_query_formatter";
 
-		//default boolean OR to just "OR" if unspecified for a site
-		if(site.booleanOR==null || site.booleanOR=="") site.booleanOR="OR";
-
-		//replace semicolons(;) with boolean OR, and URL escape the query
-		queryForSite = mentionItQuery.replace(/\s*\;\s*/, " " + site.booleanOR + " ");
-		queryForSite = escape(queryForSite);
-
-		//replace the [[query]] placeholder with site-specific query
-		site.feedURL = site.feedURL.replace(/\[\[query\]\]/, queryForSite);
-		site.searchURL = site.searchURL.replace(/\[\[query\]\]/, queryForSite);
+		//reformat the mention-it query using the specified site "queryFormatter" function
+		var queryForSite = eval(site.queryFormatter +"(\"" + mentionItQuery + "\")");
+		
+		//only continue if we still have a query (after reformatting, etc)
+		if(queryForSite!=null && queryForSite!="")
+		{
+			//replace the [[query]] placeholder with site-specific query
+			site.searchURL = site.searchURL.replace(/\[\[query\]\]/, queryForSite);
+			
+			//if JSON URL specified, replace both [[query]] and [[resultsCount]] placeholders
+			if(site.jsonURL!=null && site.jsonURL!="")
+			{
+			 	site.jsonURL = site.jsonURL.replace(/\[\[query\]\]/, queryForSite);
+				site.jsonURL = site.jsonURL.replace(/\[\[resultsCount\]\]/, resultsPerService);
+			}
+			
+			//if Feed URL specified, replace just [[query]] placeholder 
+			// (resultsCount will be handled by Google AJAX Feed API)
+			if(site.feedURL!=null && site.feedURL!="")
+			{
+				site.feedURL = site.feedURL.replace(/\[\[query\]\]/, queryForSite);
+			}
+		}
+		else
+		{
+			//clear out all URLs -- we don't have a query to run for this site
+			site.searchURL = null;
+			site.jsonURL = null;
+			site.feedURL = null;
+			
+		}
 	});
 }
 
-//Initialize each of the JSON Feed Trackers
-function initJSONTrackers()
+// ==== Query Formatters ====
+// These functions are used to reformat the query text appropriately for a given site
+// (Note some sites require specialized reformatting of the queries for things to work)
+
+//The default query formatter
+//  This just handles boolean ORs properly, and replaces the default placeholders
+function default_query_formatter(query)
 {
-   	//Initialize each of the JSON sites:
-   	//update the query placeholder in each of the site URLs
-	jQuery.each(jsonTrackers.sites, function(i, site){
-		var queryForSite = mentionItQuery;
+	//replace semicolons(;) with boolean OR (most sites use the word OR)
+	// also URL escape the query
+	query = query.replace(/\s*\;\s*/, " OR ");
+	query = escape(query);
+	
+	//return the re-formatted query
+	return query;
+}
 
-		//default boolean OR to just "OR" if unspecified for a site
-		if(site.booleanOR==null || site.booleanOR=="") site.booleanOR="OR";
+//This query formatter removes any hashtags from queries
+//  It is for sites which mistakenly don't know how to search for hashtags (like Google Blog Search)
+function no_hashtags_query_formatter(query)
+{
+	var partsToKeep = new Array();
+	//First, split query into its subqueries
+	var queryparts = query.split(";");
 
-		//replace semicolons(;) with boolean OR, and URL escape the query
-		queryForSite = mentionItQuery.replace(/\s*\;\s*/, " " + site.booleanOR + " ");
-		queryForSite = escape(queryForSite);
-
-		//replace the [[query]] placeholder with site-specific query
-		site.jsonURL = site.jsonURL.replace(/\[\[query\]\]/, queryForSite);
+	//loop through each of the query terms
+	jQuery.each(queryparts, function(index, value) {
+		//remove any spaces at beginning of query term
+		value = value.replace(/^\s*/, "");
 		
-		//replace the [[resultsCount]] placeholder with site-specific query
-		site.jsonURL = site.jsonURL.replace(/\[\[resultsCount\]\]/, resultsPerService);
+		//if first character is a hash(#) then this is a hashtag
+		// So, if it's not a hashtag, well keep it!
+		if(value.charAt(0) != "#")
+		{
+			partsToKeep.push(value);
+		}
 	});
+	
+	//Now, convert the partsToKeep array back into a query (separated by semicolons)
+	query = partsToKeep.join(";");
+	
+	//Finally, Run that new query through the default query formatter
+	return default_query_formatter(query);
+}
+
+//This query formatter removes any URLs from queries
+//  It is for sites which mistakenly don't know how to search for URLs well (like FriendFeed)
+function no_urls_query_formatter(query)
+{
+	var partsToKeep = new Array();
+	//First, split query into its subqueries
+	var queryparts = query.split(";");
+
+	//loop through each of the query terms
+	jQuery.each(queryparts, function(index, value) {
+		//remove any spaces at beginning of query term
+		value = value.replace(/^\s*/, "");
+		
+		//If this is a URL, we won't keep it
+		if(!isURL(value))
+		{
+			partsToKeep.push(value);
+		}
+	});
+	
+	//Now, convert the partsToKeep array back into a query (separated by semicolons)
+	query = partsToKeep.join(";");
+	
+	//Finally, Run that new query through the default query formatter
+	return default_query_formatter(query);
 }
 
 
@@ -195,10 +260,14 @@ loadFeedTrackers();
 function loadJSONTrackers()
 {
 	//for each configured site
-	jQuery.each(jsonTrackers.sites, function(i, site){
+	jQuery.each(siteTrackers.sites, function(i, site){
 	
-		//load the JSON search URL, and evaluate the results using the appropriate parser function
-		jQuery.getJSON(site.jsonURL, eval(site.parser));
+		//only run JSON query if we have a jsonURL
+		if(site.jsonURL!=null && site.jsonURL!="")
+		{
+		 	//load the JSON search URL, and evaluate the results using the appropriate parser function
+			jQuery.getJSON(site.jsonURL, eval(site.parser));
+		}
     });
 }
 
@@ -207,6 +276,9 @@ function parse_twitter_json(data)
 {
   var postsHTML = '';
   var sectionHeader = '';
+  
+  //find the Twitter site settings via its ID
+  twitConfig = getSiteConfig("twitter");
 	
   //for each of the json results,
   jQuery.each(data.results,
@@ -218,8 +290,8 @@ function parse_twitter_json(data)
       var tweet = result.text;
 
       var tweet_id = result.id;
-      var user_link = 'http://twitter.com/'+user;
-      var tweet_link ='http://twitter.com/'+user+'/status/'+tweet_id;
+      var user_link = twitConfig.siteURL + '/' + user;
+      var tweet_link = twitConfig.siteURL + '/' + user+'/status/'+tweet_id;
       var postedAt = result.created_at;
 	
 		
@@ -235,8 +307,8 @@ function parse_twitter_json(data)
 	{
 		sectionHeader = "<div class='mentions-header'>"
 		 	+ headingPreface + " "
-			+ "<a href='http://twitter.com'>Twitter</a>:"
-			+ " [<a href='http://search.twitter.com/search?q="+mentionItQuery+"'>view all</a>]"
+			+ "<a href='"+twitConfig.siteURL+"'>"+twitConfig.title+"</a>:"
+			+ " [<a href='"+twitConfig.searchURL+"'>view all</a>]"
 			+ "</div>";
 		mentionItTag.append(sectionHeader);
 		
@@ -253,6 +325,9 @@ function parse_friendfeed_json(data)
 	var postsHTML = '';
 	var sectionHeader = '';
 	
+	//find the FriendFeed site settings via its ID
+	ffConfig = getSiteConfig("friendfeed");
+	
 	//for each of the json results, 
 	jQuery.each(data.entries, function(i, entry){
 			
@@ -260,7 +335,7 @@ function parse_friendfeed_json(data)
 		var user = entry.user.nickname;
 		var post = entry.title;
 
-		var user_link = 'http://friendfeed.com/'+user;
+		var user_link = ffConfig.siteURL + '/' + user;
 		var postedAt = entry.updated;
 
 		
@@ -281,7 +356,7 @@ function parse_friendfeed_json(data)
 		      {
 				user = entry.comments[j].user.nickname;
 				post = entry.comments[j].body;
-				user_link = 'http://friendfeed.com/'+user;
+				user_link = ffConfig.siteURL + '/' + user;
 				postedAt = entry.comments[j].date;
 				postsHTML += "<div class='mention-comment'>"
 					  + post
@@ -301,8 +376,8 @@ function parse_friendfeed_json(data)
 	{
       sectionHeader = "<div class='mentions-header'>"
         + headingPreface + " "
-        + "<a href='http://friendfeed.com'>FriendFeed</a>:"
-        + " [<a href='http://friendfeed.com/search?q="+mentionItQuery+"'>view all</a>]"
+        + "<a href='" + ffConfig.siteURL + "'>" + ffConfig.title + "</a>:"
+        + " [<a href='" + ffConfig.searchURL +"'>view all</a>]"
         + "</div>";
       mentionItTag.append(sectionHeader);
 
@@ -310,7 +385,6 @@ function parse_friendfeed_json(data)
       jQuery("<div class='mentions'/>").append(postsHTML).appendTo(mentionItTag);
 	}
 }//end parse_friendfeed_json
-
 
 
 // Load any RSS/ATOM feeds using Google AJAX Feed API
@@ -331,8 +405,12 @@ function parse_feeds()
 	// Only contine if the 'mention-it' tag exists
 	if(tagExists(mentionItTag))
 	{
-		//For each of our specified feeds, we'll parse them one by one
-		jQuery.each(searchFeeds.sites, function(i, site){
+		//Loop through our site trackers, to find the ones with Search Feeds 
+		jQuery.each(siteTrackers.sites, function(i, site){
+			
+			//only process RSS/ATOM feed if site has a feedURL 
+			if(site.feedURL!=null && site.feedURL!="")
+			{
 			   var feed = new google.feeds.Feed(site.feedURL);
 			   
 			   //load and parse the feed
@@ -370,30 +448,11 @@ function parse_feeds()
 					}//end if results
 				} //end if no errors   
 			   }); //end feed.load
+			}//end if feedURL not null
 		}); //end jQuery.each
 		
 	} //end if mention-it tag found
 }//end parse_feeds
-
-
-// Automated parsing of feeds, using the Google "FeedControl" class
-//  (NOTE: not used by default, since it makes the RSS/ATOM results look different than JSON results)
-function parse_feeds_auto()
-{
-    //Load the feeds into Google AJAX Feed API's "FeedControl" class,
-    // as it provides a nice tabbed structure and look-and-feel out of the box.
-    // http://code.google.com/apis/ajaxfeeds/documentation/#FEEDCONTROL
-    var feedControl = new google.feeds.FeedControl();
-
-    //For each of the feeds specified in global 'searchFeed',
-    // add them to Google's "FeedControl" class
-    jQuery.each(searchFeeds.sites, function(i, site){
-        feedControl.addFeed(site.feedURL, site.title);
-    });
-
-    //draw the feed controller, in a tabbed format
-    feedControl.draw(document.getElementById("mention-feed"), {drawMode: google.feeds.FeedControl.DRAW_MODE_TABBED});
-}
 
 // ==== Utilities ====
 
@@ -411,3 +470,33 @@ function tagExists(jqueryTag)
 	}
 }
 	
+
+// Basic check to see if a string looks like it is a URL
+// If it looks like it is a URL, we can try to treat it as one
+function isURL(str) 
+{
+    var regexUrl = new RegExp();
+    // Basic Format of a URL:
+    // (optionally starts with http/https/ftp)(main part must have *at least one* period)(end part allows special chars, like ? & % =)
+    regexUrl.compile("^((ftp|https?)://)?[A-Za-z0-9-_]+\\.[A-Za-z0-9-_%&\?\/.=]+$");
+    return regexUrl.test(str);
+}
+
+
+// Attempt to locate a site's configuration settings via its ID
+//  If site isn't found, null is returned
+function getSiteConfig(idValue)
+{
+	var siteFound = null;
+	
+	//first all our Site Tracker configurations	
+	jQuery.each(siteTrackers.sites, function(i, site){
+		if(site.id==idValue)
+		{
+			siteFound = site;
+			return siteFound;
+		}
+	});
+	
+	return siteFound;
+}
